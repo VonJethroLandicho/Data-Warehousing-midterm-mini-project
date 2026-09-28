@@ -1,0 +1,79 @@
+[2026-09-17 20:32:03] [INFO] Starting Milestone 1 Master ETL Pipeline at: 2026-09-17 20:32:03
+[2026-09-17 20:32:03] [INFO] Target Database: C:\Users\vonje\Documents\4th Year Acts\Data Warehousing\lesson 6 midterm mini project\warehouse.db
+[2026-09-17 20:32:03] [INFO] Target Mongo Collection: real_estate_warehouse.property_architectural_features
+[2026-09-17 20:32:03] [INFO] Audit Trail: C:\Users\vonje\Documents\4th Year Acts\Data Warehousing\lesson 6 midterm mini project\milestone1_log.txt
+[2026-09-17 20:32:03] [INFO] ======================================================================
+[2026-09-17 20:32:03] [INFO] STEP 1: EXTRACTION PHASE
+[2026-09-17 20:32:03] [INFO] ======================================================================
+[2026-09-17 20:32:03] [INFO] Reading raw dataset from: C:\Users\vonje\Documents\4th Year Acts\Data Warehousing\lesson 6 midterm mini project\house_data.csv
+[2026-09-17 20:32:03] [INFO] Raw data successfully extracted.
+[2026-09-17 20:32:03] [INFO] Total records ingested: 21,613
+[2026-09-17 20:32:03] [INFO] Total attributes detected: 21
+[2026-09-17 20:32:03] [INFO] Column list: ['id', 'date', 'price', 'bedrooms', 'bathrooms', 'sqft_living', 'sqft_lot', 'floors', 'waterfront', 'view', 'condition', 'grade', 'sqft_above', 'sqft_basement', 'yr_built', 'yr_renovated', 'zipcode', 'lat', 'long', 'sqft_living15', 'sqft_lot15']
+[2026-09-17 20:32:03] [INFO] ======================================================================
+[2026-09-17 20:32:03] [INFO] STEP 2: DATA CLEANSING & TRANSFORMATION PHASE
+[2026-09-17 20:32:03] [INFO] ======================================================================
+[2026-09-17 20:32:03] [INFO] Data Completeness Audit: No null values detected in raw source.
+[2026-09-17 20:32:03] [WARNING] [ANOMALY AUDIT] Detected bedroom data-entry typo: Property ID 2402100895 has bedrooms=33 for sqft_living=1620. Correcting bedrooms to 3.
+[2026-09-17 20:32:03] [INFO] Bedrooms range after correction: min=0, max=11
+[2026-09-17 20:32:03] [INFO] Standardizing date format from raw 'YYYYMMDDT000000' to ISO-8601...
+[2026-09-17 20:32:03] [INFO] Total sales transactions processed: 21,613
+[2026-09-17 20:32:03] [INFO] Unique property entities identified: 21,436
+[2026-09-17 20:32:03] [INFO] Data cleansing and feature engineering successfully completed.
+[2026-09-17 20:32:03] [INFO] ======================================================================
+[2026-09-17 20:32:03] [INFO] STEP 3: SQLITE STAR SCHEMA WAREHOUSE LOADING
+[2026-09-17 20:32:03] [INFO] ======================================================================
+[2026-09-17 20:32:03] [INFO] Initializing SQLite Database at: C:\Users\vonje\Documents\4th Year Acts\Data Warehousing\lesson 6 midterm mini project\warehouse.db
+[2026-09-17 20:32:03] [INFO] Removed pre-existing database file: C:\Users\vonje\Documents\4th Year Acts\Data Warehousing\lesson 6 midterm mini project\warehouse.db
+[2026-09-17 20:32:03] [INFO] Executing DDL statements to build star schema tables...
+[2026-09-17 20:32:03] [INFO] Populating 'dim_date' table...
+[2026-09-17 20:32:03] [INFO] Loaded 372 records into 'dim_date'.
+[2026-09-17 20:32:03] [INFO] Populating 'dim_location' table...
+[2026-09-17 20:32:03] [INFO] Loaded 20,834 records into 'dim_location'.
+[2026-09-17 20:32:03] [INFO] Populating 'dim_property' table...
+[2026-09-17 20:32:03] [INFO] Loaded 21,436 records into 'dim_property'.
+[2026-09-17 20:32:03] [INFO] Populating 'dim_condition_grade' table...
+[2026-09-17 20:32:03] [INFO] Loaded 181 records into 'dim_condition_grade'.
+[2026-09-17 20:32:03] [INFO] Mapping foreign keys and populating 'fact_property_sales' table...
+[2026-09-17 20:32:03] [INFO] Loaded 21,613 records into 'fact_property_sales'.
+[2026-09-17 20:32:03] [INFO] Integrity Check PASSED: 0 foreign key constraint violations detected.
+[2026-09-17 20:32:03] [INFO] ======================================================================
+[2026-09-17 20:32:03] [INFO] STEP 4: MONGODB DOCUMENT STORE LOADING
+[2026-09-17 20:32:03] [INFO] ======================================================================
+[2026-09-17 20:32:03] [INFO] Connecting to MongoDB at: mongodb://localhost:27017/
+[2026-09-17 20:32:03] [INFO] Connected to MongoDB Server v8.3.8
+[2026-09-17 20:32:03] [INFO] Cleaned staging collection 'property_architectural_features' in database 'real_estate_warehouse'.
+[2026-09-17 20:32:03] [INFO] Transforming tabular data into nested architectural feature documents...
+[2026-09-17 20:32:09] [INFO] Bulk inserting 21,436 documents into MongoDB collection 'property_architectural_features'...
+[2026-09-17 20:32:09] [INFO] Successfully inserted 21,436 documents into MongoDB.
+[2026-09-17 20:32:09] [INFO] Creating MongoDB indexes (property_id, zipcode, 2dsphere location, grade)...
+[2026-09-17 20:32:10] [INFO] MongoDB indexing successfully completed.
+[2026-09-17 20:32:10] [INFO] ======================================================================
+[2026-09-17 20:32:10] [INFO] STEP 5: CROSS-ENGINE AUDIT & VERIFICATION
+[2026-09-17 20:32:10] [INFO] ======================================================================
+[2026-09-17 20:32:10] [INFO] SQLite Table Record Counts:
+[2026-09-17 20:32:10] [INFO]   - dim_date            :      372 rows
+[2026-09-17 20:32:10] [INFO]   - dim_location        :   20,834 rows
+[2026-09-17 20:32:10] [INFO]   - dim_property        :   21,436 rows
+[2026-09-17 20:32:10] [INFO]   - dim_condition_grade :      181 rows
+[2026-09-17 20:32:10] [INFO]   - fact_property_sales :   21,613 rows
+[2026-09-17 20:32:10] [INFO] 
+Verification Query: Quarterly Sales Summary (SQLite):
+[2026-09-17 20:32:10] [INFO]   Year   Quarter  Transactions   Avg Price ($)    Avg Price/SqFt ($)
+[2026-09-17 20:32:10] [INFO]   ----------------------------------------------------------------
+[2026-09-17 20:32:10] [INFO]   2014   Q2       3,948          $553,558.95      $264.22           
+[2026-09-17 20:32:10] [INFO]   2014   Q3       5,925          $537,405.58      $259.72           
+[2026-09-17 20:32:10] [INFO]   2014   Q4       4,760          $529,467.03      $258.98           
+[2026-09-17 20:32:10] [INFO]   2015   Q1       4,103          $528,655.42      $265.40           
+[2026-09-17 20:32:10] [INFO]   2015   Q2       2,877          $561,004.52      $279.98           
+[2026-09-17 20:32:10] [INFO] 
+MongoDB Document Count: 21,436 documents in 'property_architectural_features'
+[2026-09-17 20:32:10] [INFO] Sample Document Inspection (Property ID 7129300520):
+[2026-09-17 20:32:10] [INFO]   Bedrooms: 3, Bathrooms: 1.0
+[2026-09-17 20:32:10] [INFO]   Living SqFt: 1180, Grade: 7
+[2026-09-17 20:32:10] [INFO]   Coordinates: [-122.257, 47.5112]
+[2026-09-17 20:32:10] [INFO]   Sales Recorded: 1
+[2026-09-17 20:32:10] [INFO] ======================================================================
+[2026-09-17 20:32:10] [INFO] MILESTONE 1 PIPELINE EXECUTION COMPLETED SUCCESSFULLY
+[2026-09-17 20:32:10] [INFO] ======================================================================
+[2026-09-17 20:32:10] [INFO] Master ETL Pipeline finished successfully in 7.05 seconds.
