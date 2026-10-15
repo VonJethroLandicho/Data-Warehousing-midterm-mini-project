@@ -1,0 +1,202 @@
+================================================================================
+DATA WAREHOUSING (LEC/LAB) - LESSON 7 PERFORMANCE TUNING & DATA MART
+Execution Started at: 2026-10-12 18:56:51
+Group: Group 10 | Domain: Real Estate Property Listing & Regional Valuation
+================================================================================
+
+================================================================================
+ STEP 1 & 2: PERFORMANCE BOTTLENECK ANALYSIS & INDEXING TUNING
+================================================================================
+[PRAGMA] Journal Mode set to: WAL (Write-Ahead Logging enabled)
+[PRAGMA] Foreign Keys Enforcement: ENABLED (1)
+[PRAGMA] Synchronous mode set to NORMAL; Cache size set to 64MB; Temp store set to MEMORY.
+
+[BASELINE] Dropping 5 existing indexes for unindexed baseline test:
+   - Dropped index: idx_fact_date
+   - Dropped index: idx_fact_location
+   - Dropped index: idx_fact_grade
+   - Dropped index: idx_fact_property
+   - Dropped index: idx_dim_loc_zip
+
+--------------------------------------------------------------------------------
+PHASE 1: BASELINE EXECUTION (BEFORE INDEXING - UNINDEXED TABLES)
+--------------------------------------------------------------------------------
+
+Evaluating: Query A: Monthly Trend Filtering (Fact Date & Sales Range)
+  EXPLAIN QUERY PLAN:
+    -> [id=3, parent=0] SCAN f
+    -> [id=11, parent=0] SEARCH d USING INTEGER PRIMARY KEY (rowid=?)
+  Baseline Average Latency: 0.635 ms
+
+Evaluating: Query B: Regional Valuation & Size Filter (Compound Location Search)
+  EXPLAIN QUERY PLAN:
+    -> [id=3, parent=0] SCAN f
+    -> [id=14, parent=0] SEARCH l USING INTEGER PRIMARY KEY (rowid=?)
+  Baseline Average Latency: 1.367 ms
+
+Evaluating: Query C: High-Grade Structural Valuation (Grade & Price Range)
+  EXPLAIN QUERY PLAN:
+    -> [id=3, parent=0] SEARCH g USING INTEGER PRIMARY KEY (rowid=?)
+    -> [id=34, parent=0] SCAN f
+  Baseline Average Latency: 9.994 ms
+
+Evaluating: Query D: Bedroom Aggregation & Price Summary
+  EXPLAIN QUERY PLAN:
+    -> [id=6, parent=0] SCAN f
+    -> [id=14, parent=0] USE TEMP B-TREE FOR GROUP BY
+  Baseline Average Latency: 4.015 ms
+
+--------------------------------------------------------------------------------
+PHASE 2: APPLYING EXPLICIT DDL INDEXING STATEMENTS
+--------------------------------------------------------------------------------
+  [CREATE INDEX] idx_fact_date created successfully in 6.55 ms
+  [CREATE INDEX] idx_fact_location created successfully in 4.60 ms
+  [CREATE INDEX] idx_fact_grade created successfully in 5.41 ms
+  [CREATE INDEX] idx_fact_property created successfully in 6.86 ms
+  [CREATE INDEX] idx_dim_loc_zip created successfully in 7.02 ms
+  [CREATE INDEX] idx_dim_date_ym created successfully in 0.26 ms
+  [CREATE INDEX] idx_fact_date_price created successfully in 8.32 ms
+  [CREATE INDEX] idx_fact_loc_price_sqft created successfully in 5.61 ms
+  [CREATE INDEX] idx_fact_grade_price created successfully in 8.53 ms
+  [CREATE INDEX] idx_fact_bed_price created successfully in 9.06 ms
+  [ANALYZE] Statistics collected on all tables and indexes.
+
+--------------------------------------------------------------------------------
+PHASE 3: TUNED EXECUTION (AFTER INDEXING - COMPOUND & COVERING SEARCHES)
+--------------------------------------------------------------------------------
+
+Evaluating: Query A: Monthly Trend Filtering (Fact Date & Sales Range)
+  EXPLAIN QUERY PLAN:
+    -> [id=4, parent=0] SEARCH d USING INTEGER PRIMARY KEY (rowid>? AND rowid<?)
+    -> [id=9, parent=0] SEARCH f USING INDEX idx_fact_date_price (date_id=? AND price>?)
+  Tuned Average Latency: 0.005 ms (Speedup: 124.09x)
+
+Evaluating: Query B: Regional Valuation & Size Filter (Compound Location Search)
+  EXPLAIN QUERY PLAN:
+    -> [id=4, parent=0] SEARCH f USING INDEX idx_fact_location (location_id>? AND location_id<?)
+    -> [id=16, parent=0] SEARCH l USING INTEGER PRIMARY KEY (rowid=?)
+  Tuned Average Latency: 0.931 ms (Speedup: 1.47x)
+
+Evaluating: Query C: High-Grade Structural Valuation (Grade & Price Range)
+  EXPLAIN QUERY PLAN:
+    -> [id=4, parent=0] SEARCH g USING INTEGER PRIMARY KEY (rowid=?)
+    -> [id=35, parent=0] SEARCH f USING INDEX idx_fact_grade_price (grade_condition_id=? AND price>?)
+  Tuned Average Latency: 0.243 ms (Speedup: 41.20x)
+
+Evaluating: Query D: Bedroom Aggregation & Price Summary
+  EXPLAIN QUERY PLAN:
+    -> [id=7, parent=0] SEARCH f USING INDEX idx_fact_bed_price (bedrooms>? AND bedrooms<?)
+  Tuned Average Latency: 3.525 ms (Speedup: 1.14x)
+
+==========================================================================================
+PERFORMANCE BENCHMARK AUDIT SUMMARY (BEFORE VS AFTER INDEXING)
+==========================================================================================
+Query Scenario                             | Before (ms)  | After (ms)   | Speedup    | Status
+------------------------------------------------------------------------------------------
+Query A: Monthly Trend Filtering (Fact D   | 0.635        | 0.005        | 124.09   x | OPTIMIZED
+Query B: Regional Valuation & Size Filte   | 1.367        | 0.931        | 1.47     x | OPTIMIZED
+Query C: High-Grade Structural Valuation   | 9.994        | 0.243        | 41.20    x | OPTIMIZED
+Query D: Bedroom Aggregation & Price Sum   | 4.015        | 3.525        | 1.14     x | OPTIMIZED
+------------------------------------------------------------------------------------------
+
+Applying validated compound indexes to core warehouse database...
+[PRAGMA] Journal Mode set to: WAL (Write-Ahead Logging enabled)
+[PRAGMA] Foreign Keys Enforcement: ENABLED (1)
+[PRAGMA] Synchronous mode set to NORMAL; Cache size set to 64MB; Temp store set to MEMORY.
+[SUCCESS] Core warehouse.db permanently updated with single and compound B-Tree indexes.
+
+================================================================================
+ STEP 3: ONLINE DATABASE BACKUP AUTOMATION (SQLITE BACKUP API)
+================================================================================
+Source Database: C:\CJ\Visual Studio\DataWarehousing\Data-Warehousing-midterm-mini-project\warehouse.db
+Backup Target:   C:\CJ\Visual Studio\DataWarehousing\Data-Warehousing-midterm-mini-project\Lesson-&\warehouse_online_backup.db
+  [BACKUP PROGRESS] Copied 250/1419 pages (17.6% complete)...
+  [BACKUP PROGRESS] Copied 500/1419 pages (35.2% complete)...
+  [BACKUP PROGRESS] Copied 750/1419 pages (52.9% complete)...
+  [BACKUP PROGRESS] Copied 1000/1419 pages (70.5% complete)...
+  [BACKUP PROGRESS] Copied 1250/1419 pages (88.1% complete)...
+  [BACKUP PROGRESS] Copied 1419/1419 pages (100.0% complete)...
+
+[BACKUP SUCCESS] Backup completed in 29.29 ms.
+  Source Size:     5.54 MB
+  Backup Size:     5.54 MB
+  Verified Rows:   21,613 records in fact_property_sales
+  Integrity Check: OK
+
+================================================================================
+ STEP 4: MATERIALIZE DEPARTMENTAL DATA MART (REAL ESTATE PROPERTY VALUATIONS)
+================================================================================
+Extracting from Core Warehouse: C:\CJ\Visual Studio\DataWarehousing\Data-Warehousing-midterm-mini-project\warehouse.db
+Materializing Data Mart at:     C:\CJ\Visual Studio\DataWarehousing\Data-Warehousing-midterm-mini-project\Lesson-&\property_valuation_mart.db
+[PRAGMA] Journal Mode set to: WAL (Write-Ahead Logging enabled)
+[PRAGMA] Foreign Keys Enforcement: ENABLED (1)
+[PRAGMA] Synchronous mode set to NORMAL; Cache size set to 64MB; Temp store set to MEMORY.
+
+[MART EXTRACTION 1] Building 'monthly_property_valuation_mart'...
+  Materialized 13 monthly summary records.
+
+[MART EXTRACTION 2] Building 'regional_zipcode_valuation_mart'...
+  Materialized 70 regional zip-code valuation records.
+
+[MART EXTRACTION 3] Building 'structural_grade_valuation_mart'...
+  Materialized 44 structural grade valuation records.
+  Created high-speed B-Tree reporting indexes on Data Mart tables.
+
+--- Data Mart Table Verification ---
+  Table 'monthly_property_valuation_mart': 13 aggregated rows.
+  Table 'regional_zipcode_valuation_mart': 70 aggregated rows.
+  Table 'structural_grade_valuation_mart': 44 aggregated rows.
+[DATA MART ALIAS] Created identical C:\CJ\Visual Studio\DataWarehousing\Data-Warehousing-midterm-mini-project\Lesson-&\sales_datamart.db for submission compatibility.
+
+================================================================================
+DELIVERABLE 1 & 3 COMPLETED SUCCESSFULLY!
+Audit log saved to: C:\CJ\Visual Studio\DataWarehousing\Data-Warehousing-midterm-mini-project\Lesson-&\lab4_execution_log.txt
+================================================================================
+
+================================================================================
+DATA GOVERNANCE & SCHEMA VALIDATION RUNNER (lab_governance.py)
+Timestamp: 2026-10-12 18:59:10
+================================================================================
+
+================================================================================
+ PART 1: RELATIONAL SCHEMA GOVERNANCE & STRICT DDL CONSTRAINTS
+================================================================================
+Initializing Governed Relational Database at: C:\CJ\Visual Studio\DataWarehousing\Data-Warehousing-midterm-mini-project\Lesson-&\governed_warehouse.db
+[DDL SUCCESS] Governed Star Schema tables created with strict CHECK and NOT NULL constraints.
+
+--- Running Relational Governance Integrity Tests ---
+[SEED] Successfully seeded valid dimension reference records.
+  [PASS] TEST 1: Positive Compliance (Clean, valid property sale): Valid data accepted successfully.
+  [PASS - BLOCKED AS EXPECTED] TEST 2: Negative Pricing Violation (CHECK constraint price > 0)
+         Caught Expected Error: CHECK constraint failed: price > 0.0
+  [PASS - BLOCKED AS EXPECTED] TEST 3: Zero / Negative Living Space (CHECK constraint sqft_living > 0)
+         Caught Expected Error: CHECK constraint failed: sqft_living > 0
+  [PASS - BLOCKED AS EXPECTED] TEST 4: Missing Required Key (NOT NULL constraint date_id)
+         Caught Expected Error: NOT NULL constraint failed: fact_property_sales_governed.date_id
+  [PASS - BLOCKED AS EXPECTED] TEST 5: Orphan Record / Foreign Key Violation (location_id 999999)
+         Caught Expected Error: FOREIGN KEY constraint failed
+  [PASS - BLOCKED AS EXPECTED] TEST 6: Invalid Dimension Attribute (CHECK constraint grade BETWEEN 1 AND 13)
+         Caught Expected Error: CHECK constraint failed: grade BETWEEN 1 AND 13
+
+================================================================================
+ PART 2: MONGODB DOCUMENT STORE GOVERNANCE ($JSONSCHEMA VALIDATOR)
+================================================================================
+Connecting to MongoDB at: mongodb://localhost:27017/
+[MONGODB DDL] Collection 'property_architectural_features_governed' created with strict $jsonSchema validator.
+[MONGODB INDEX] Applied unique index on property_id and 2dsphere on neighborhood_context.location.
+
+--- Running MongoDB $jsonSchema Validation Tests ---
+  [PASS] MONGO TEST 1: Valid Architectural Feature Document: Valid document compliant with $jsonSchema.
+  [PASS - BLOCKED AS EXPECTED] MONGO TEST 2: Negative Sales Price ($jsonSchema minimum: 1.0)
+         MongoDB WriteError: Document failed validation (Document failed validation)
+  [PASS - BLOCKED AS EXPECTED] MONGO TEST 3: Out-of-Bounds Building Grade ($jsonSchema maximum: 13)
+         MongoDB WriteError: Document failed validation (Document failed validation)
+  [PASS - BLOCKED AS EXPECTED] MONGO TEST 4: Missing Required Field (architectural_specs.bedrooms missing)
+         MongoDB WriteError: Document failed validation (Document failed validation)
+  [PASS - BLOCKED AS EXPECTED] MONGO TEST 5: Malformed Postal Code ($jsonSchema pattern ^[0-9]{5}$)
+         MongoDB WriteError: Document failed validation (Document failed validation)
+
+================================================================================
+DELIVERABLE 2 DATA GOVERNANCE COMPLETED SUCCESSFULLY!
+Audit log appended to: C:\CJ\Visual Studio\DataWarehousing\Data-Warehousing-midterm-mini-project\Lesson-&\lab4_execution_log.txt
+================================================================================
