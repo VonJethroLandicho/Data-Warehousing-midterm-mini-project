@@ -1,0 +1,122 @@
+
+================================================================================
+ RETAILPULSE / GROUP 10 MULTI-ENGINE DATA WAREHOUSE
+================================================================================
+ Execution Date:       2026-10-26 11:01:27
+ Domain:               Real Estate Property Valuation Warehouse (Group 10)
+ Target Relational DB: C:\CJ\Visual Studio\DataWarehousing\Data-Warehousing-midterm-mini-project\milestone 1\enterprise_warehouse.db
+ Target Mongo Database:real_estate_warehouse
+ Audit Log File:       C:\CJ\Visual Studio\DataWarehousing\Data-Warehousing-midterm-mini-project\milestone 1\etl_execution_log.txt
+
+================================================================================
+ PHASE 1: AUTOMATED LANDING ZONE EXTRACTION
+================================================================================
+[2026-10-26 11:01:27] Extracting raw property sales from: C:\CJ\Visual Studio\DataWarehousing\Data-Warehousing-midterm-mini-project\milestone 1\landing_zone\raw_property_sales.csv
+[2026-10-26 11:01:27] Successfully extracted 5,720 raw sales records.
+[2026-10-26 11:01:27] Extracting raw feedback logs from: C:\CJ\Visual Studio\DataWarehousing\Data-Warehousing-midterm-mini-project\milestone 1\landing_zone\raw_property_feedback.json
+[2026-10-26 11:01:27] Successfully extracted 1,295 raw feedback documents.
+
+================================================================================
+ PHASE 2A: CLEANSING & TRANSFORMING RELATIONAL SALES DATA
+================================================================================
+[2026-10-26 11:01:27] Input raw sales row count: 5,720
+[2026-10-26 11:01:27] Duplicate rows identified and dropped: 150
+[2026-10-26 11:01:27] Records with missing/corrupted property IDs dropped: 9
+[2026-10-26 11:01:27] Records with invalid/missing date formats dropped: 5
+[2026-10-26 11:01:27] Constraint violators (negative prices, zero sqft, out-of-range bounds) dropped: 40
+[2026-10-26 11:01:27] Duplicate property transactions on same date dropped: 16
+[2026-10-26 11:01:27] Final clean sales record count: 5,500
+
+--- Sales Cleansing Audit Breakdown ---
+  • Raw Records Extracted:              5,720
+  • Exact Duplicate Rows Dropped:         150
+  • Missing/Null Key Rows Dropped:          9
+  • Unparseable Date Rows Dropped:          5
+  • Business Rule Violators Dropped:       40
+  • Same-Day Duplicate Txns Dropped:       16
+  • Clean Records Ready for Loading:    5,500
+
+================================================================================
+ PHASE 2B: CLEANSING SEMI-STRUCTURED FEEDBACK DOCUMENTS
+================================================================================
+[2026-10-26 11:01:27] Input raw feedback document count: 1,295
+[2026-10-26 11:01:27] Final clean feedback document count: 1,189
+
+--- Feedback Cleansing Audit Breakdown ---
+  • Raw Documents Extracted:           1,295
+  • Duplicate Review IDs Dropped:         65
+  • Missing Required Keys Dropped:        30
+  • Out-of-Bounds Ratings Dropped:        11
+  • Unparseable Date Docs Dropped:         0
+  • Clean Documents Ready for Mongo:   1,189
+
+================================================================================
+ PHASE 3A: LOADING RELATIONAL STAR SCHEMA (SQLITE)
+================================================================================
+
+--- Initializing Relational Star Schema in SQLite (enterprise_warehouse.db) ---
+[2026-10-26 11:01:27] Created tables: dim_property, dim_location, dim_condition_grade, dim_date, fact_property_sales (and view fact_sales).
+[2026-10-26 11:01:27] Loaded 5,487 unique rows into dim_property.
+[2026-10-26 11:01:27] Loaded 5,457 unique rows into dim_location.
+[2026-10-26 11:01:27] Loaded 131 unique rows into dim_condition_grade.
+[2026-10-26 11:01:27] Loaded 331 unique calendar rows into dim_date.
+
+--- Mapping Surrogate Foreign Keys & Ingesting Fact Table ---
+[2026-10-26 11:01:28] Loaded 5,500 rows into fact_property_sales (skipped 0 due to FK mapping).
+
+================================================================================
+ PHASE 3B: LOADING DOCUMENT STORE (MONGODB)
+================================================================================
+
+--- Configuring MongoDB Strict $jsonSchema Validation Rules ---
+[2026-10-26 11:01:28] Collection 'sales_documents' configured with strict $jsonSchema validation.
+[2026-10-26 11:01:28] Collection 'feedback_documents' configured with strict $jsonSchema validation.
+[2026-10-26 11:01:28] Created B-Tree indexes on property_id, sale_date, and unique review_id in MongoDB.
+[2026-10-26 11:01:28] Successfully loaded 5,500 documents into 'sales_documents'.
+[2026-10-26 11:01:28] Successfully loaded 1,189 documents into 'feedback_documents'.
+
+================================================================================
+ PHASE 4: MULTI-ENGINE DATA GOVERNANCE VERIFICATION TESTING
+================================================================================
+
+--- Unit Test 1: SQLite Negative Price CHECK Constraint ---
+[2026-10-26 11:01:28] [PASS] Relational engine successfully blocked negative price: CHECK constraint failed: price > 0.0
+
+--- Unit Test 2: SQLite Foreign Key Referential Integrity ---
+[2026-10-26 11:01:28] [PASS] Relational engine successfully blocked invalid foreign key: FOREIGN KEY constraint failed
+
+--- Unit Test 3: MongoDB Strict $jsonSchema (Out-of-Bounds Rating: 7) ---
+[2026-10-26 11:01:28] [PASS] MongoDB successfully blocked invalid document via $jsonSchema: Document failed validation
+
+--- Unit Test 4: MongoDB Strict $jsonSchema (Negative Price: -100.0) ---
+[2026-10-26 11:01:28] [PASS] MongoDB successfully blocked negative price document: Document failed validation
+
+================================================================================
+ MILESTONE 1 MASTER EXECUTION AUDIT SUMMARY
+================================================================================
+ Total Execution Time: 0.98 seconds
+
+ [A] Operational Cleansing Metrics:
+     • Raw Sales Rows Ingested:           5,720
+     • Final Clean Sales Rows:            5,500
+     • Raw Feedback Documents Read:       1,295
+     • Final Clean Feedback Docs:         1,189
+
+ [B] Relational Star Schema (SQLite: enterprise_warehouse.db):
+     • dim_property              :    5,487 rows
+     • dim_location              :    5,457 rows
+     • dim_condition_grade       :      131 rows
+     • dim_date                  :      331 rows
+     • fact_property_sales       :    5,500 rows
+
+ [C] Document Collections (MongoDB: real_estate_warehouse):
+     • sales_documents           :    5,500 documents
+     • feedback_documents        :    1,189 documents
+
+ [D] Data Governance & Constraint Verification Suite:
+     • SQLite CHECK Price > 0           [PASSED] (CHECK constraint failed: price > 0.0...)
+     • SQLite FK Referential Integrity  [PASSED] (FOREIGN KEY constraint failed...)
+     • MongoDB $jsonSchema Rating 1-5   [PASSED] (Document failed validation...)
+     • MongoDB $jsonSchema Price >= 1.0 [PASSED] (Document failed validation...)
+
+ >>> STATUS: MILESTONE 1 ETL & GOVERNANCE COMPLETED SUCCESSFULLY (100% PASS) <<<
